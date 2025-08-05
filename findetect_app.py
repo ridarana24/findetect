@@ -30,7 +30,7 @@ st.markdown("""
 
 st.title("FinDetect: AI-Powered Financial Analysis")
 
-query = st.text_input("Paste line items and year-on-year values (e.g. 'Investment Property 2024: 5000, 2025: 6000'):")
+query = st.text_input("Paste line items and year-on-year values:")
 
 # IFRS/IAS mapping for advanced analysis
 ifrs_guidance = {
