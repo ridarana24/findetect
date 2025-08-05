@@ -1,3 +1,12 @@
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+    html, body, [class*="css"]  {
+        font-family: 'Unbounded', sans-serif;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 import streamlit as st
 import pandas as pd
 import numpy as np
