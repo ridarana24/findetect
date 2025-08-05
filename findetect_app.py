@@ -68,14 +68,19 @@ def parse_yearly_change(text):
     lines = re.split(r'[\n;]+', text)
     results = []
     for line in lines:
-        # Extremely flexible match for item followed by 2024 and 2025 values
-        match = re.search(r'(.*?)\s*2024[^\d]*([\d,\.]+)[^\d]*2025[^\d]*([\d,\.]+)', line, re.IGNORECASE)
-        if match:
-            item = match.group(1).strip().rstrip(':')
-            val_2024 = float(match.group(2).replace(',', ''))
-            val_2025 = float(match.group(3).replace(',', ''))
-            change_pct = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 else 0
-            results.append((item, val_2024, val_2025, change_pct))
+        try:
+            # Extremely flexible: matches any line with item and 2024/2025 values
+            match = re.search(r'(.*?)\s*2024[^\d\-]*([\d,\.]+)[^\d\-]+2025[^\d\-]*([\d,\.]+)', line, re.IGNORECASE)
+            if match:
+                item = match.group(1).strip().rstrip(':')
+                val_2024_raw = match.group(2).replace(',', '').strip()
+                val_2025_raw = match.group(3).replace(',', '').strip()
+                val_2024 = float(val_2024_raw)
+                val_2025 = float(val_2025_raw)
+                change_pct = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 else 0
+                results.append((item, val_2024, val_2025, change_pct))
+        except (AttributeError, ValueError, IndexError):
+            continue  # Skip bad lines gracefully
     return results
 
 def advanced_analysis(results):
@@ -105,5 +110,6 @@ if query:
     result = advanced_analysis(parsed)
     st.subheader("Analysis Result")
     st.markdown(result, unsafe_allow_html=True)
+
 
 
