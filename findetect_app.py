@@ -1,81 +1,78 @@
-
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
+import re
 
-# --- Custom Styling ---
+# Set page config
+st.set_page_config(page_title="FinDetect", layout="centered")
+
+# Custom styling
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Varela+Round&display=swap');
-    html, body, [class*="css"]  {
-        font-family: 'Varela Round', sans-serif;
-        background-color: #0F1117;
-        color: #FFFFFF;
-    }
-    .stButton>button {
-        color: #FFFFFF;
-        background: #1DB954;
-        border: none;
-        padding: 0.6em 1.2em;
-        border-radius: 10px;
-        font-weight: bold;
-        transition: background 0.3s ease;
-    }
-    .stButton>button:hover {
-        background: #1AA34A;
-    }
+        @import url('https://fonts.googleapis.com/css2?family=Varela+Round&display=swap');
+        html, body, [class*="css"]  {
+            font-family: 'Varela Round', sans-serif;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: white;
+        }
+        .stTextInput input {
+            color: white;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Header ---
-st.image("https://upload.wikimedia.org/wikipedia/commons/6/60/Fraud_detection_concept.jpg", use_container_width=True)
-st.title("FinDetect Pro")
-st.subheader("🧠 AI-powered Fraud Detection + IFRS-based Financial Review")
+st.title("FinDetect: AI-Powered Financial Analysis")
 
-# --- File Upload ---
-uploaded_file = st.file_uploader("📁 Upload your financial transaction CSV", type=["csv"])
+# Chat-based input
+query = st.text_input("Paste a company's financial data or ask a question:")
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
+# Sample logic for chat analysis
+def parse_financials(text):
+    # Basic number extraction
+    numbers = re.findall(r'\d+[\,\.]?\d*', text.replace(',', ''))
+    numbers = [float(n) for n in numbers if n.replace('.', '', 1).isdigit()]
 
-    # Basic view
-    st.write("### 🔍 Raw Data Preview")
-    st.dataframe(df.head())
+    # Dummy structure: assume order [Revenue, COGS, Net Income, Total Assets, Total Liabilities]
+    results = {}
+    if len(numbers) >= 5:
+        results['Revenue'] = numbers[0]
+        results['COGS'] = numbers[1]
+        results['Net Income'] = numbers[2]
+        results['Total Assets'] = numbers[3]
+        results['Total Liabilities'] = numbers[4]
+    return results
 
-    # Fraud score simulation (mock AI logic)
-    st.write("### 🚨 Fraud Risk Detection")
-    df["fraud_score"] = np.random.rand(len(df))  # Mocked logic
-    risky = df[df["fraud_score"] > 0.8]
-    st.write(f"⚠️ Found {len(risky)} potentially risky transactions")
-    st.dataframe(risky[["fraud_score"] + [col for col in df.columns if col != "fraud_score"]])
+def analyze(financials):
+    if not financials:
+        return "Unable to extract enough financial data. Try again with more details."
 
-    # IFRS-inspired financial insights
-    st.write("### 📊 Financial Health Snapshot (IFRS Style)")
-    if {"amount", "type"}.issubset(df.columns):
-        income = df[df["type"] == "credit"]["amount"].sum()
-        expenses = df[df["type"] == "debit"]["amount"].sum()
-        profit = income - expenses
+    analysis = []
+    # Gross Profit Margin
+    if 'Revenue' in financials and 'COGS' in financials:
+        gpm = (financials['Revenue'] - financials['COGS']) / financials['Revenue'] * 100
+        analysis.append(f"Gross Profit Margin: {gpm:.2f}%")
 
-        st.metric("💰 Total Income", f"${income:,.2f}")
-        st.metric("💸 Total Expenses", f"${expenses:,.2f}")
-        st.metric("📈 Net Profit", f"${profit:,.2f}")
+    # Net Profit Margin
+    if 'Net Income' in financials and 'Revenue' in financials:
+        npm = financials['Net Income'] / financials['Revenue'] * 100
+        analysis.append(f"Net Profit Margin: {npm:.2f}%")
 
-        # Suggestion logic
-        st.write("### 💡 AI Suggestions")
-        if profit < 0:
-            st.error("⚠️ Negative profit detected. Consider reducing expenses or improving revenue streams.")
-        elif expenses > income * 0.7:
-            st.warning("🧮 Expenses are high relative to income. Try budgeting more effectively.")
-        else:
-            st.success("✅ Financials look stable. Continue monitoring for anomalies.")
+    # Debt to Asset Ratio
+    if 'Total Liabilities' in financials and 'Total Assets' in financials:
+        dar = financials['Total Liabilities'] / financials['Total Assets'] * 100
+        analysis.append(f"Debt to Asset Ratio: {dar:.2f}%")
 
-        # Visualization
-        fig, ax = plt.subplots()
-        ax.bar(["Income", "Expenses", "Net Profit"], [income, expenses, profit], color=["green", "red", "blue"])
-        ax.set_title("Financial Overview")
-        st.pyplot(fig)
-    else:
-        st.error("CSV must include 'amount' and 'type' columns.")
-else:
-    st.info("Please upload a CSV to begin analysis.")
+        # IFRS-based suggestion
+        if dar > 70:
+            analysis.append("⚠️ High leverage detected. Consider reviewing IFRS 9 for credit risk implications.")
+
+    if len(analysis) == 0:
+        return "Not enough info for analysis. Please provide more financial details."
+
+    return '\n'.join(analysis)
+
+if query:
+    financial_data = parse_financials(query)
+    result = analyze(financial_data)
+    st.subheader("Analysis Result")
+    st.text(result)
+
