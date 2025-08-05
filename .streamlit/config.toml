@@ -1,11 +1,7 @@
-[server]
-headless = true
-port = $PORT
-enableCORS = false
-
 [theme]
-primaryColor = "#005792"
-backgroundColor = "#f7f9fb"
-secondaryBackgroundColor = "#e1ecf4"
-textColor = "#262730"
-font = "Varela Round"
+primaryColor = "#00FF41"
+backgroundColor = "#000000"
+secondaryBackgroundColor = "#0a0a0a"
+textColor = "#00FF41"
+font = "Share Tech Mono"
+
