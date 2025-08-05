@@ -1,77 +1,11 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import re
 
 # Set page config
 st.set_page_config(page_title="FinDetect", layout="centered")
 
-# Inject Matrix-style background with falling green code
-components.html("""
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: black;
-        }
-
-        canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: -1;
-        }
-
-        .matrix-text {
-            font-family: 'Share Tech Mono', monospace;
-            color: #00FF41 !important;
-        }
-    </style>
-    <canvas id="matrixCanvas"></canvas>
-    <script>
-        const canvas = document.getElementById('matrixCanvas');
-        const ctx = canvas.getContext('2d');
-
-        canvas.height = window.innerHeight;
-        canvas.width = window.innerWidth;
-
-        let chars = "アァイィウエカキクケコサシスセソタチッツテトナニヌネノ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        chars = chars.split("");
-
-        let fontSize = 14;
-        let columns = canvas.width / fontSize;
-        let drops = [];
-
-        for (let x = 0; x < columns; x++)
-            drops[x] = 1;
-
-        function draw() {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.fillStyle = "#0F0";
-            ctx.font = fontSize + "px 'Share Tech Mono'";
-
-            for (let i = 0; i < drops.length; i++) {
-                let text = chars[Math.floor(Math.random() * chars.length)];
-                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975)
-                    drops[i] = 0;
-
-                drops[i]++;
-            }
-        }
-
-        setInterval(draw, 33);
-        window.onresize = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        };
-    </script>
-""", height=0)
-
-# Inject font and text input styling
+# Custom styling with matrix-style animated background and boxy font
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
@@ -79,6 +13,15 @@ st.markdown("""
         html, body, [class*="css"] {
             font-family: 'Share Tech Mono', monospace !important;
             color: #00FF41 !important;
+            background-color: transparent !important;
+        }
+
+        .stApp {
+            background-color: transparent !important;
+        }
+
+        .block-container {
+            background-color: rgba(0,0,0,0) !important;
         }
 
         .stTextInput input, .stTextArea textarea {
@@ -90,10 +33,54 @@ st.markdown("""
         .stTextInput label, .stTextArea label, .stSubheader, .stTitle {
             color: #00FF41 !important;
         }
+
+        canvas#matrix {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
     </style>
+
+    <canvas id="matrix"></canvas>
+    <script>
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+
+        canvas.height = window.innerHeight;
+        canvas.width = window.innerWidth;
+
+        const letters = 'アァイィウヴエエェオカガキギクグケゲコゴサザシジスズセゼソゾタダチッヂヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = [];
+
+        for (let i = 0; i < columns; i++) {
+            drops[i] = 1;
+        }
+
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#0F0';
+            ctx.font = fontSize + 'px Share Tech Mono';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(draw, 33);
+    </script>
 """, unsafe_allow_html=True)
 
-# App Title
 st.title("FinDetect: AI-Powered Financial Analysis")
 
 # Chat-based input
