@@ -5,7 +5,7 @@ import re
 # Set page config
 st.set_page_config(page_title="FinDetect", layout="centered")
 
-# Custom styling with dark navy background and light blue accents
+# Custom styling with dark navy background and bright text
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
@@ -13,7 +13,7 @@ st.markdown("""
         html, body, [class*="css"]  {
             font-family: 'Share Tech Mono', monospace;
             background-color: #001f3f !important;
-            color: #FFFFFF !important;
+            color: white !important;
         }
 
         .stApp {
@@ -21,104 +21,87 @@ st.markdown("""
         }
 
         .stTextInput input {
-            color: #FFFFFF;
-            background-color: #005792;
-            border: 1px solid #00BFFF;
-        }
-
-        .stButton>button {
-            background-color: #005792;
-            color: #FFFFFF;
+            color: white;
+            background-color: #87cefa;
+            border: 1px solid white;
         }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("FinDetect: AI-Powered Financial Analysis for Auditors")
+st.title("FinDetect: AI-Powered Financial Analysis")
 
-# Chat-based input
-query = st.text_input("Paste a company's financial data or ask a question:")
+query = st.text_input("Paste line items and year-on-year values (e.g. 'Investment Property 2024: 5000, 2025: 6000'):")
 
-# Sample logic for chat analysis
-def parse_financials(text):
-    # Basic number and keyword extraction
-    numbers = re.findall(r'\d+[\,\.]?\d*', text.replace(',', ''))
-    numbers = [float(n) for n in numbers if n.replace('.', '', 1).isdigit()]
-
-    # Keyword-based detection
-    keywords = {
-        'Revenue': ['revenue', 'sales'],
-        'COGS': ['cost of goods sold', 'cogs'],
-        'Net Income': ['net income', 'profit after tax'],
-        'Total Assets': ['total assets'],
-        'Total Liabilities': ['total liabilities'],
-        'Investment Property': ['investment property'],
-        'Intangible Assets': ['intangible'],
-        'Cash and Cash Equivalents': ['cash'],
-        'Equity': ['equity']
+# IFRS/IAS mapping for advanced analysis
+ifrs_guidance = {
+    "Investment Property": {
+        "standards": ["IAS 40", "IFRS 13"],
+        "notes": "Investment property should be measured at fair value. Significant increases may indicate revaluation or acquisition. Check appraisal reports, acquisition records, and ensure fair value hierarchy disclosures are met."
+    },
+    "Revenue": {
+        "standards": ["IFRS 15"],
+        "notes": "Revenue changes may stem from volume/price fluctuations, or changes in recognition policy. Cross-check contracts and timing of recognition."
+    },
+    "COGS": {
+        "standards": ["IAS 2"],
+        "notes": "Increase in COGS might reflect rising costs or inventory issues. Review inventory valuation, supplier contracts, and pricing trends."
+    },
+    "Net Income": {
+        "standards": ["IAS 1"],
+        "notes": "Large fluctuations in net income should be traced to operating, financing, or tax components. Inspect notes, tax returns, and financing costs."
+    },
+    "Total Assets": {
+        "standards": ["IAS 1"],
+        "notes": "Check for asset acquisitions, revaluations, or disposals. Trace to non-current asset schedules and revaluation reports."
+    },
+    "Total Liabilities": {
+        "standards": ["IFRS 9", "IAS 1"],
+        "notes": "Increase may indicate borrowings or changes in financial liabilities. Check loan agreements, maturities, and classification."
+    },
+    "PPE": {
+        "standards": ["IAS 16"],
+        "notes": "Ensure depreciation and revaluation are correctly applied. Large changes should be traced to capex or disposal records."
     }
+}
 
-    results = {}
-    for key, terms in keywords.items():
-        for term in terms:
-            if term in text.lower():
-                index = text.lower().find(term)
-                context = text[index:index+100]
-                value_match = re.findall(r'\d+[\,\.]?\d*', context.replace(',', ''))
-                if value_match:
-                    results[key] = float(value_match[0])
-                    break
-
-    if len(results) == 0 and len(numbers) == 1:
-        results['Single Value'] = numbers[0]
-
+def parse_yearly_change(text):
+    lines = re.split(r'[\n,;]+', text)
+    results = []
+    for line in lines:
+        match = re.match(r'(.*?)\s*2024\D*(\d+[.,]?\d*)\D*2025\D*(\d+[.,]?\d*)', line, re.IGNORECASE)
+        if match:
+            item = match.group(1).strip()
+            val_2024 = float(match.group(2).replace(',', ''))
+            val_2025 = float(match.group(3).replace(',', ''))
+            change_pct = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 else 0
+            results.append((item, val_2024, val_2025, change_pct))
     return results
 
-def analyze(financials):
-    if not financials:
-        return "Unable to extract enough financial data. Try again with more detail."
+def advanced_analysis(results):
+    if not results:
+        return "Not enough financial data detected. Please follow format like 'Investment Property 2024: 5000, 2025: 6000'"
 
-    analysis = []
+    output = []
+    for item, y1, y2, change in results:
+        formatted_change = f"{change:.2f}%"
+        color = "red" if abs(change) > 3 else "white"
 
-    if 'Revenue' in financials and 'COGS' in financials:
-        gpm = (financials['Revenue'] - financials['COGS']) / financials['Revenue'] * 100
-        analysis.append(f"Gross Profit Margin: {gpm:.2f}%")
+        output.append(f"\n**{item}**\n2024: {y1}, 2025: {y2}\n<span style='color:{color}'>Change: {formatted_change}</span>")
 
-    if 'Net Income' in financials and 'Revenue' in financials:
-        npm = financials['Net Income'] / financials['Revenue'] * 100
-        analysis.append(f"Net Profit Margin: {npm:.2f}%")
+        if item in ifrs_guidance:
+            standards = ", ".join(ifrs_guidance[item]['standards'])
+            output.append(f"Relevant Standards: {standards}")
+            output.append(f"Recommendations: {ifrs_guidance[item]['notes']}")
+            if abs(change) > 3:
+                output.append("⚠️ Significant change detected. Further audit investigation advised.")
+        elif abs(change) > 3:
+            output.append("⚠️ Unmapped item with large fluctuation. Consider cross-checking related notes or disclosures.")
 
-    if 'Total Liabilities' in financials and 'Total Assets' in financials:
-        dar = financials['Total Liabilities'] / financials['Total Assets'] * 100
-        analysis.append(f"Debt to Asset Ratio: {dar:.2f}%")
-
-        if dar > 70:
-            analysis.append("High leverage detected. Consider IFRS 9 implications: credit risk, impairment provisioning, and going concern risks. Also assess whether the debt structure is sustainable and properly disclosed.")
-
-    if 'Investment Property' in financials:
-        analysis.append("Investment property detected. Ensure IFRS 13 (Fair Value Measurement) and IAS 40 (Investment Property) guidance are followed.")
-
-    if 'Intangible Assets' in financials:
-        analysis.append("Check if intangible assets comply with IAS 38, particularly regarding amortisation and impairment.")
-
-    if 'Cash and Cash Equivalents' in financials:
-        if financials['Cash and Cash Equivalents'] < 0:
-            analysis.append("Negative cash balance detected — verify cash flow statement and reconciliation with bank confirmations.")
-
-    if 'Equity' in financials and 'Total Assets' in financials:
-        eq_ratio = financials['Equity'] / financials['Total Assets'] * 100
-        analysis.append(f"Equity to Asset Ratio: {eq_ratio:.2f}%")
-
-    if 'Single Value' in financials:
-        analysis.append("Single figure detected. Please specify the account name (e.g. Investment Property 2024: 500000, 2025: 700000) for a more detailed analysis.")
-
-    if len(analysis) == 0:
-        return "Not enough recognizable data for analysis. Try specifying the line items (e.g., Revenue: 100000, Net Income: 25000)."
-
-    return '\n'.join(analysis)
+    return '\n\n'.join(output)
 
 if query:
-    financial_data = parse_financials(query)
-    result = analyze(financial_data)
+    parsed = parse_yearly_change(query)
+    result = advanced_analysis(parsed)
     st.subheader("Analysis Result")
-    st.text(result)
+    st.markdown(result, unsafe_allow_html=True)
 
