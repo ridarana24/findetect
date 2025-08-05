@@ -1,130 +1,87 @@
 import streamlit as st
-import pandas as pd
-import re
 import openai
-import matplotlib.pyplot as plt
+import re
 
-# Set page config
-st.set_page_config(page_title="FinDetect", layout="wide")
+# Set your app title
+st.set_page_config(page_title="FinDetect AI - Audit Assistant", page_icon="📊", layout="centered")
 
-# Custom styling
+# Load OpenAI API key from Streamlit secrets
+openai.api_key = st.secrets["general"]["OPENAI_API_KEY"]
+
+# Custom styles
 st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-
-        html, body, [class*="css"]  {
-            font-family: 'Share Tech Mono', monospace;
-            background-color: #001f3f !important;
-            color: white !important;
-        }
-
-        .stApp {
-            background-color: #001f3f !important;
-        }
-
-        .stTextInput input {
-            color: white;
-            background-color: #87cefa;
-            border: 1px solid white;
-        }
+    body {background-color: #0b1a36;}
+    .stApp {background-color: #0b1a36; color: white; font-family: 'Varela Round', sans-serif;}
+    .stTextInput > div > div > input {background-color: #1f3a5f; color: white; border-radius: 10px;}
+    .css-1aumxhk {background-color: #1f3a5f; color: white;}
     </style>
 """, unsafe_allow_html=True)
 
-st.title("FinDetect: AI-Powered Financial Analysis & Audit Engine")
+st.title("📊 FinDetect AI: Auditor's Intelligence Engine")
+st.write("Ask any financial or audit-related question and get smart analysis backed by IFRS & IAS standards.")
 
-query = st.text_input("Paste financial items with 2024 and 2025 values:")
-
-ifrs_guidance = {
-    "Investment Property": {"standards": ["IAS 40", "IFRS 13"], "notes": "Fair value, revaluation or acquisition reviewed."},
-    "Revenue": {"standards": ["IFRS 15"], "notes": "Check recognition timing, volume/price, contracts."},
-    "COGS": {"standards": ["IAS 2"], "notes": "Rising COGS may indicate cost or inventory issues."},
-    "Net Income": {"standards": ["IAS 1"], "notes": "Check operating and tax drivers."},
-    "Total Assets": {"standards": ["IAS 1"], "notes": "Review acquisitions, disposals, revaluations."},
-    "Total Liabilities": {"standards": ["IFRS 9", "IAS 1"], "notes": "Check borrowings, changes in financial liabilities."},
-    "PPE": {"standards": ["IAS 16"], "notes": "Capex, disposal, depreciation analysis."},
-    "Intangible Assets": {"standards": ["IAS 38"], "notes": "Impairment, amortisation, acquisition review."},
-    "Leases": {"standards": ["IFRS 16"], "notes": "Right-of-use and lease liabilities."},
-    "Provisions": {"standards": ["IAS 37"], "notes": "Ensure proper recognition and reasonableness."},
-    "Deferred Tax": {"standards": ["IAS 12"], "notes": "Correct tax base and recognition."},
-    "Financial Instruments": {"standards": ["IFRS 9"], "notes": "Classification, measurement, impairment."},
-    "Inventory": {"standards": ["IAS 2"], "notes": "Costing method and write-downs."},
-    "Borrowings": {"standards": ["IFRS 9"], "notes": "Check interest rate terms and disclosures."},
-    "Goodwill": {"standards": ["IAS 36"], "notes": "Test annually for impairment."},
-    "Retained Earnings": {"standards": ["IAS 1"], "notes": "Understand profit movements and dividend payouts."},
-    "Share Capital": {"standards": ["IAS 32"], "notes": "Disclosure of share movements and classification."},
-    "Cash and Cash Equivalents": {"standards": ["IAS 7"], "notes": "Ensure classification and cash flow alignment."},
-    "Other Comprehensive Income": {"standards": ["IAS 1"], "notes": "Reconcile to equity movements and items."},
-    "Biological Assets": {"standards": ["IAS 41"], "notes": "Measure at fair value less costs to sell."},
-    "Employee Benefits": {"standards": ["IAS 19"], "notes": "Defined benefit obligations and disclosures."}
-}
-
-def parse_yearly_change(text):
-    pattern = r'(.*?)\s*(?:2024|in 2024|was in 2024|for 2024)[:\s-]*([\d,.]+)[^\d]+(?:2025|in 2025|was in 2025|for 2025)[:\s-]*([\d,.]+)'
-    results = []
-    for line in re.split(r'[\n;]+', text):
-        match = re.search(pattern, line, re.IGNORECASE)
-        if match:
-            try:
-                item = match.group(1).strip().rstrip(':')
-                val_2024 = float(match.group(2).replace(',', ''))
-                val_2025 = float(match.group(3).replace(',', ''))
-                change_pct = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 else 0
-                results.append((item, val_2024, val_2025, change_pct))
-            except:
-                continue
-    return results
-
-def get_ai_insight(text):
+# --- AI Chat Function --- #
+def ask_financial_ai(user_input):
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You're a forensic audit AI engine. Assess risk, audit scenarios, ISA relevance and fraud flags."},
-                {"role": "user", "content": text}
-            ]
+                {"role": "system", "content": "You are a powerful AI auditing assistant. Interpret vague or exact financial data and give deep insight per IFRS/IAS. Provide recommendations, possible red flags, and what an auditor should check."},
+                {"role": "user", "content": user_input}
+            ],
+            temperature=0.2
         )
         return response.choices[0].message.content
-    except:
-        return "AI engine currently unavailable."
+    except Exception as e:
+        return f"❌ AI Error: {str(e)}"
 
-def show_chart(results):
-    if results:
-        df = pd.DataFrame(results, columns=["Item", "2024", "2025", "% Change"])
-        df.set_index("Item")[["2024", "2025"]].plot(kind='bar')
-        st.pyplot(plt.gcf())
-        plt.clf()
+# --- Simple Ratio Analysis (Optional Supplement) --- #
+def parse_yearly_change(query):
+    match = re.search(r"(.+)\s+(2024):\s*(\d+[,.]?\d*)[,\s]+(2025):\s*(\d+[,.]?\d*)", query, re.IGNORECASE)
+    if match:
+        item = match.group(1).strip()
+        val_2024 = float(match.group(3).replace(',', ''))
+        val_2025 = float(match.group(5).replace(',', ''))
+        percent_change = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 != 0 else 0
+        color = "red" if abs(percent_change) > 3 else "white"
+        return f"<b style='color:{color}'>{item} YoY Change:</b> {percent_change:.2f}%", item, val_2024, val_2025, percent_change
+    else:
+        return "⚠️ Not enough data. Try: 'PPE in 2024: 5000, 2025: 4800'", None, None, None, None
 
-def advanced_analysis(results):
-    if not results:
-        return "<span style='color:red'>⚠️ Not enough data. Try: 'PPE in 2024: 5000, 2025: 4800'</span>"
+# --- User Input --- #
+user_input = st.text_input("🔍 Enter financial data or audit question:")
 
-    output = []
-    for item, y1, y2, change in results:
-        formatted_change = f"{change:.2f}%"
-        color = "red" if abs(change) > 3 else "white"
+if user_input:
+    # Step 1: Try parsing as a financial YoY input
+    parse_result, item, v2024, v2025, change = parse_yearly_change(user_input)
+    st.markdown(parse_result, unsafe_allow_html=True)
 
-        output.append(f"\n**{item}**\n2024: {y1}, 2025: {y2}\n<span style='color:{color}'>Change: {formatted_change}</span>")
+    # Step 2: AI analysis
+    st.markdown("### 💬 AI Insight:")
+    ai_response = ask_financial_ai(user_input)
+    st.write(ai_response)
 
-        if item in ifrs_guidance:
-            standards = ", ".join(ifrs_guidance[item]['standards'])
-            output.append(f"IFRS Standards: {standards}")
-            output.append(f"Audit Checklist: {ifrs_guidance[item]['notes']}")
-            if abs(change) > 3:
-                output.append("⚠️ Significant fluctuation. Deep audit needed.")
-        elif abs(change) > 3:
-            output.append("⚠️ Unmapped line with abnormal change. Review manually.")
+    # Step 3 (Optional): Additional rule-based logic
+    if item:
+        if item.lower() == "investment property":
+            st.markdown("---")
+            st.markdown("**🔎 Additional IFRS Checks for Investment Property**")
+            if change > 3:
+                st.write("Increase detected in Investment Property. Possible reasons:")
+                st.write("- Fair value gains (check revaluation method under IFRS 13).")
+                st.write("- Purchase of new property (check capital expenditure records).")
+                st.write("- Reclassification from PPE (verify IAS 40 conditions).")
+            elif change < -3:
+                st.write("Decrease detected. Investigate:")
+                st.write("- Disposals (verify sale agreements and derecognition under IFRS 13).")
+                st.write("- Impairments (apply IAS 36 impairment review).")
+            else:
+                st.write("No significant change in Investment Property. Cross-check disclosures and revaluation policy consistency.")
 
-        ai_advice = get_ai_insight(f"{item} changed from {y1} to {y2}. Provide audit risks, relevant IFRS/IAS, fraud red flags, and checklist items.")
-        output.append(f"\n**AI Mastermind Audit Engine:**\n{ai_advice}")
+            st.write("Always ensure IFRS 13 (Fair Value Measurement) and IAS 40 are appropriately disclosed and applied.")
 
-    return '\n\n'.join(output)
 
-if query:
-    parsed = parse_yearly_change(query)
-    result = advanced_analysis(parsed)
-    st.subheader("📊 Analysis Result")
-    st.markdown(result, unsafe_allow_html=True)
-    show_chart(parsed)
 
 
 
