@@ -1,6 +1,11 @@
+[server]
+headless = true
+port = $PORT
+enableCORS = false
+
 [theme]
-primaryColor="#00c9a7"
-backgroundColor="#0e1117"
-secondaryBackgroundColor="#1f2937"
-textColor="#ffffff"
-font="Varela Round"
+primaryColor = "#005792"
+backgroundColor = "#f7f9fb"
+secondaryBackgroundColor = "#e1ecf4"
+textColor = "#262730"
+font = "Varela Round"
