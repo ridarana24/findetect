@@ -6,7 +6,7 @@ import re
 st.set_page_config(page_title="FinDetect AI - Audit Assistant", page_icon="📊", layout="centered")
 
 # Load OpenAI API key from Streamlit secrets
-openai.api_key = st.secrets["general"]["OPENAI_API_KEY"]
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Custom styles
 st.markdown("""
