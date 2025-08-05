@@ -1,11 +1,13 @@
 import streamlit as st
 import pandas as pd
 import re
+import openai
+import matplotlib.pyplot as plt
 
 # Set page config
-st.set_page_config(page_title="FinDetect", layout="centered")
+st.set_page_config(page_title="FinDetect", layout="wide")
 
-# Custom styling with dark navy background and bright text
+# Custom styling
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
@@ -28,67 +30,73 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("FinDetect: AI-Powered Financial Analysis")
+st.title("FinDetect: AI-Powered Financial Analysis & Audit Engine")
 
-query = st.text_input("Paste line items and year-on-year values (e.g. 'Investment Property 2024: 5000, 2025: 6000'):")
+query = st.text_input("Paste financial items with 2024 and 2025 values:")
 
-# IFRS/IAS mapping for advanced analysis
 ifrs_guidance = {
-    "Investment Property": {
-        "standards": ["IAS 40", "IFRS 13"],
-        "notes": "Investment property should be measured at fair value. Significant increases may indicate revaluation or acquisition. Check appraisal reports, acquisition records, and ensure fair value hierarchy disclosures are met. If unchanged, assess whether market conditions justify a revaluation. Inspect documentation to confirm annual fair value assessments were performed."
-    },
-    "Revenue": {
-        "standards": ["IFRS 15"],
-        "notes": "Revenue changes may stem from volume/price fluctuations, or changes in recognition policy. Cross-check contracts and timing of recognition."
-    },
-    "COGS": {
-        "standards": ["IAS 2"],
-        "notes": "Increase in COGS might reflect rising costs or inventory issues. Review inventory valuation, supplier contracts, and pricing trends."
-    },
-    "Net Income": {
-        "standards": ["IAS 1"],
-        "notes": "Large fluctuations in net income should be traced to operating, financing, or tax components. Inspect notes, tax returns, and financing costs."
-    },
-    "Total Assets": {
-        "standards": ["IAS 1"],
-        "notes": "Check for asset acquisitions, revaluations, or disposals. Trace to non-current asset schedules and revaluation reports."
-    },
-    "Total Liabilities": {
-        "standards": ["IFRS 9", "IAS 1"],
-        "notes": "Increase may indicate borrowings or changes in financial liabilities. Check loan agreements, maturities, and classification."
-    },
-    "PPE": {
-        "standards": ["IAS 16"],
-        "notes": "Ensure depreciation and revaluation are correctly applied. Large changes should be traced to capex or disposal records."
-    }
+    "Investment Property": {"standards": ["IAS 40", "IFRS 13"], "notes": "Fair value, revaluation or acquisition reviewed."},
+    "Revenue": {"standards": ["IFRS 15"], "notes": "Check recognition timing, volume/price, contracts."},
+    "COGS": {"standards": ["IAS 2"], "notes": "Rising COGS may indicate cost or inventory issues."},
+    "Net Income": {"standards": ["IAS 1"], "notes": "Check operating and tax drivers."},
+    "Total Assets": {"standards": ["IAS 1"], "notes": "Review acquisitions, disposals, revaluations."},
+    "Total Liabilities": {"standards": ["IFRS 9", "IAS 1"], "notes": "Check borrowings, changes in financial liabilities."},
+    "PPE": {"standards": ["IAS 16"], "notes": "Capex, disposal, depreciation analysis."},
+    "Intangible Assets": {"standards": ["IAS 38"], "notes": "Impairment, amortisation, acquisition review."},
+    "Leases": {"standards": ["IFRS 16"], "notes": "Right-of-use and lease liabilities."},
+    "Provisions": {"standards": ["IAS 37"], "notes": "Ensure proper recognition and reasonableness."},
+    "Deferred Tax": {"standards": ["IAS 12"], "notes": "Correct tax base and recognition."},
+    "Financial Instruments": {"standards": ["IFRS 9"], "notes": "Classification, measurement, impairment."},
+    "Inventory": {"standards": ["IAS 2"], "notes": "Costing method and write-downs."},
+    "Borrowings": {"standards": ["IFRS 9"], "notes": "Check interest rate terms and disclosures."},
+    "Goodwill": {"standards": ["IAS 36"], "notes": "Test annually for impairment."},
+    "Retained Earnings": {"standards": ["IAS 1"], "notes": "Understand profit movements and dividend payouts."},
+    "Share Capital": {"standards": ["IAS 32"], "notes": "Disclosure of share movements and classification."},
+    "Cash and Cash Equivalents": {"standards": ["IAS 7"], "notes": "Ensure classification and cash flow alignment."},
+    "Other Comprehensive Income": {"standards": ["IAS 1"], "notes": "Reconcile to equity movements and items."},
+    "Biological Assets": {"standards": ["IAS 41"], "notes": "Measure at fair value less costs to sell."},
+    "Employee Benefits": {"standards": ["IAS 19"], "notes": "Defined benefit obligations and disclosures."}
 }
 
 def parse_yearly_change(text):
-    lines = re.split(r'[\n;]+', text)
+    pattern = r'(.*?)\s*(?:2024|in 2024|was in 2024|for 2024)[:\s-]*([\d,.]+)[^\d]+(?:2025|in 2025|was in 2025|for 2025)[:\s-]*([\d,.]+)'
     results = []
-    for line in lines:
-        try:
-            match = re.search(
-                r'(?P<item>[A-Za-z ]+?)[\s:,-]*'
-                r'(?:in\s*)?2024[^\d\-]*?(?P<val2024>[\d,\.]+)[^\d\-]+'
-                r'(?:in\s*)?2025[^\d\-]*?(?P<val2025>[\d,\.]+)', 
-                line, re.IGNORECASE
-            )
-
-            if match:
-                item = match.group("item").strip().rstrip(':')
-                val_2024 = float(match.group("val2024").replace(',', ''))
-                val_2025 = float(match.group("val2025").replace(',', ''))
+    for line in re.split(r'[\n;]+', text):
+        match = re.search(pattern, line, re.IGNORECASE)
+        if match:
+            try:
+                item = match.group(1).strip().rstrip(':')
+                val_2024 = float(match.group(2).replace(',', ''))
+                val_2025 = float(match.group(3).replace(',', ''))
                 change_pct = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 else 0
                 results.append((item, val_2024, val_2025, change_pct))
-        except Exception:
-            continue
+            except:
+                continue
     return results
+
+def get_ai_insight(text):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You're a forensic audit AI engine. Assess risk, audit scenarios, ISA relevance and fraud flags."},
+                {"role": "user", "content": text}
+            ]
+        )
+        return response.choices[0].message.content
+    except:
+        return "AI engine currently unavailable."
+
+def show_chart(results):
+    if results:
+        df = pd.DataFrame(results, columns=["Item", "2024", "2025", "% Change"])
+        df.set_index("Item")[["2024", "2025"]].plot(kind='bar')
+        st.pyplot(plt.gcf())
+        plt.clf()
 
 def advanced_analysis(results):
     if not results:
-        return "Not enough financial data detected. Please follow format like 'Investment Property 2024: 5000, 2025: 6000'"
+        return "<span style='color:red'>⚠️ Not enough data. Try: 'PPE in 2024: 5000, 2025: 4800'</span>"
 
     output = []
     for item, y1, y2, change in results:
@@ -99,20 +107,24 @@ def advanced_analysis(results):
 
         if item in ifrs_guidance:
             standards = ", ".join(ifrs_guidance[item]['standards'])
-            output.append(f"Relevant Standards: {standards}")
-            output.append(f"Recommendations: {ifrs_guidance[item]['notes']}")
+            output.append(f"IFRS Standards: {standards}")
+            output.append(f"Audit Checklist: {ifrs_guidance[item]['notes']}")
             if abs(change) > 3:
-                output.append("⚠️ Significant change detected. Further audit investigation advised.")
+                output.append("⚠️ Significant fluctuation. Deep audit needed.")
         elif abs(change) > 3:
-            output.append("⚠️ Unmapped item with large fluctuation. Consider cross-checking related notes or disclosures.")
+            output.append("⚠️ Unmapped line with abnormal change. Review manually.")
+
+        ai_advice = get_ai_insight(f"{item} changed from {y1} to {y2}. Provide audit risks, relevant IFRS/IAS, fraud red flags, and checklist items.")
+        output.append(f"\n**AI Mastermind Audit Engine:**\n{ai_advice}")
 
     return '\n\n'.join(output)
 
 if query:
     parsed = parse_yearly_change(query)
     result = advanced_analysis(parsed)
-    st.subheader("Analysis Result")
+    st.subheader("📊 Analysis Result")
     st.markdown(result, unsafe_allow_html=True)
+    show_chart(parsed)
 
 
 
