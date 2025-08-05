@@ -11,12 +11,26 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 # Custom styles
 st.markdown("""
     <style>
-    body {background-color: #0b1a36;}
-    .stApp {background-color: #0b1a36; color: white; font-family: 'Varela Round', sans-serif;}
-    .stTextInput > div > div > input {background-color: #1f3a5f; color: white; border-radius: 10px;}
-    .css-1aumxhk {background-color: #1f3a5f; color: white;}
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        html, body, [class*="css"] {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #0b1a36 !important;
+            color: white !important;
+        }
+
+        .stTextInput input {
+            background-color: #1f3a5f !important;
+            color: white !important;
+            border-radius: 8px;
+        }
+
+        .stApp {
+            background-color: #0b1a36 !important;
+        }
     </style>
 """, unsafe_allow_html=True)
+
 
 st.title("📊 FinDetect AI: Auditor's Intelligence Engine")
 st.write("Ask any financial or audit-related question and get smart analysis backed by IFRS & IAS standards.")
