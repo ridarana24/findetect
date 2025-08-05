@@ -5,17 +5,49 @@ import re
 # Set page config
 st.set_page_config(page_title="FinDetect", layout="centered")
 
-# Custom styling
+# Custom styling with matrix-style animated background and boxy font
 st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Varela+Round&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
         html, body, [class*="css"]  {
-            font-family: 'Varela Round', sans-serif;
-            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-            color: white;
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #000000 !important;
+            color: #00FF41 !important;
+            background: #000000 !important;
         }
+
+        .stApp {
+            background: #000000 !important;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background: radial-gradient(#00FF41 1px, transparent 1px);
+            background-size: 20px 20px;
+            animation: moveDots 5s linear infinite;
+            opacity: 0.1;
+        }
+
+        @keyframes moveDots {
+            from {
+                background-position: 0 0;
+            }
+            to {
+                background-position: 100px 100px;
+            }
+        }
+
         .stTextInput input {
-            color: white;
+            color: #00FF41;
+            background-color: #000;
+            border: 1px solid #00FF41;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -63,7 +95,7 @@ def analyze(financials):
 
         # IFRS-based suggestion
         if dar > 70:
-            analysis.append("⚠️ High leverage detected. Consider reviewing IFRS 9 for credit risk implications.")
+            analysis.append("High leverage detected. Consider reviewing IFRS 9 for credit risk implications.")
 
     if len(analysis) == 0:
         return "Not enough info for analysis. Please provide more financial details."
