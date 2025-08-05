@@ -69,18 +69,21 @@ def parse_yearly_change(text):
     results = []
     for line in lines:
         try:
-            # Extremely flexible: matches any line with item and 2024/2025 values
-            match = re.search(r'(.*?)\s*2024[^\d\-]*([\d,\.]+)[^\d\-]+2025[^\d\-]*([\d,\.]+)', line, re.IGNORECASE)
+            match = re.search(
+                r'(?P<item>[A-Za-z ]+?)[\s:,-]*'
+                r'(?:in\s*)?2024[^\d\-]*?(?P<val2024>[\d,\.]+)[^\d\-]+'
+                r'(?:in\s*)?2025[^\d\-]*?(?P<val2025>[\d,\.]+)', 
+                line, re.IGNORECASE
+            )
+
             if match:
-                item = match.group(1).strip().rstrip(':')
-                val_2024_raw = match.group(2).replace(',', '').strip()
-                val_2025_raw = match.group(3).replace(',', '').strip()
-                val_2024 = float(val_2024_raw)
-                val_2025 = float(val_2025_raw)
+                item = match.group("item").strip().rstrip(':')
+                val_2024 = float(match.group("val2024").replace(',', ''))
+                val_2025 = float(match.group("val2025").replace(',', ''))
                 change_pct = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 else 0
                 results.append((item, val_2024, val_2025, change_pct))
-        except (AttributeError, ValueError, IndexError):
-            continue  # Skip bad lines gracefully
+        except Exception:
+            continue
     return results
 
 def advanced_analysis(results):
