@@ -2,98 +2,91 @@ import streamlit as st
 import openai
 import re
 
-# Set your app title
-st.set_page_config(page_title="FinDetect AI - Audit Assistant", page_icon="📊", layout="centered")
-
-# Load OpenAI API key from Streamlit secrets
+# ✅ Set OpenAI API key from Streamlit secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Custom styles
-st.markdown("""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-
-        html, body, [class*="css"] {
-            font-family: 'Share Tech Mono', monospace;
-            background-color: #0b1a36 !important;
-            color: white !important;
-        }
-
-        .stTextInput input {
-            background-color: #1f3a5f !important;
-            color: white !important;
-            border-radius: 8px;
-        }
-
-        .stApp {
-            background-color: #0b1a36 !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-
-st.title("📊 FinDetect AI: Auditor's Intelligence Engine")
-st.write("Ask any financial or audit-related question and get smart analysis backed by IFRS & IAS standards.")
-
-# --- AI Chat Function --- #
-def ask_financial_ai(user_input):
+# ✅ Function to ask OpenAI using new syntax
+def ask_ai(prompt):
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a powerful AI auditing assistant. Interpret vague or exact financial data and give deep insight per IFRS/IAS. Provide recommendations, possible red flags, and what an auditor should check."},
-                {"role": "user", "content": user_input}
-            ],
-            temperature=0.2
+                {"role": "system", "content": (
+                    "You're an AI-powered expert auditor with full knowledge of IFRS/IAS standards, "
+                    "auditing practices, red flag detection, and financial analysis. "
+                    "You understand vague inputs like 'sales increased slightly' or 'investment property stayed same', "
+                    "and you compute ratios like ROCE, gross/net profit margin, debt-equity, etc."
+                )},
+                {"role": "user", "content": prompt}
+            ]
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"❌ AI Error: {str(e)}"
+        return f"\n❌ AI Error:\n\n{e}"
 
-# --- Simple Ratio Analysis (Optional Supplement) --- #
-def parse_yearly_change(query):
-    match = re.search(r"(.+)\s+(2024):\s*(\d+[,.]?\d*)[,\s]+(2025):\s*(\d+[,.]?\d*)", query, re.IGNORECASE)
+# ✅ Function to extract item and year-wise values
+def parse_yearly_change(text):
+    match = re.search(r"(.*?)\s*2024[\s:,-]*([\d,]+)[^\d]+2025[\s:,-]*([\d,]+)", text, re.IGNORECASE)
     if match:
         item = match.group(1).strip()
-        val_2024 = float(match.group(3).replace(',', ''))
-        val_2025 = float(match.group(5).replace(',', ''))
-        percent_change = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 != 0 else 0
-        color = "red" if abs(percent_change) > 3 else "white"
-        return f"<b style='color:{color}'>{item} YoY Change:</b> {percent_change:.2f}%", item, val_2024, val_2025, percent_change
+        val_2024 = float(match.group(2).replace(",", ""))
+        val_2025 = float(match.group(3).replace(",", ""))
+        return item, val_2024, val_2025
+    return None, None, None
+
+# ✅ Streamlit config and styling
+st.set_page_config(page_title="FinDetect AI", layout="centered")
+
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Varela+Round&display=swap');
+    html, body, [class*="css"]  {
+        font-family: 'Varela Round', sans-serif;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("📊 FinDetect AI - Auditing Mastermind")
+
+# ✅ Main input
+query = st.text_input("Ask anything about financial data, trends, audit risks, or IFRS standards:")
+
+if query:
+    item, val_2024, val_2025 = parse_yearly_change(query)
+    
+    if item and val_2024 is not None and val_2025 is not None:
+        change = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 != 0 else 0
+        color = "red" if abs(change) > 3 else "black"
+
+        st.markdown(f"**{item}** YoY Change: <span style='color:{color}'>**{change:.2f}%**</span>", unsafe_allow_html=True)
+
+        ai_prompt = (
+            f"You are reviewing financials. Item: {item}, 2024: {val_2024}, 2025: {val_2025}. "
+            f"Year-over-year change: {change:.2f}%\n\n"
+            f"👉 Provide audit insights, red flags, IFRS/IAS standards triggered.\n"
+            f"👉 Compute ratios like ROCE, Gross/Net Profit, Debt-Equity.\n"
+            f"👉 Suggest audit procedures and internal controls.\n"
+            f"👉 Provide comparative analysis."
+        )
+        ai_response = ask_ai(ai_prompt)
+
+        st.markdown("---")
+        st.subheader("💬 AI Insight:")
+        st.markdown(ai_response)
+
     else:
-        return "⚠️ Not enough data. Try: 'PPE in 2024: 5000, 2025: 4800'", None, None, None, None
+        vague_prompt = (
+            f"{query}\n\n"
+            f"👉 Interpret this vague statement using auditing intelligence.\n"
+            f"👉 Identify financial line items, risks, ratios, IFRS/IAS triggers.\n"
+            f"👉 Suggest audit procedures, red flags, controls, and advice."
+        )
+        ai_response = ask_ai(vague_prompt)
+        
+        st.markdown("---")
+        st.subheader("💬 AI Interpretation:")
+        st.markdown(ai_response)
 
-# --- User Input --- #
-user_input = st.text_input("🔍 Enter financial data or audit question:")
-
-if user_input:
-    # Step 1: Try parsing as a financial YoY input
-    parse_result, item, v2024, v2025, change = parse_yearly_change(user_input)
-    st.markdown(parse_result, unsafe_allow_html=True)
-
-    # Step 2: AI analysis
-    st.markdown("### 💬 AI Insight:")
-    ai_response = ask_financial_ai(user_input)
-    st.write(ai_response)
-
-    # Step 3 (Optional): Additional rule-based logic
-    if item:
-        if item.lower() == "investment property":
-            st.markdown("---")
-            st.markdown("**🔎 Additional IFRS Checks for Investment Property**")
-            if change > 3:
-                st.write("Increase detected in Investment Property. Possible reasons:")
-                st.write("- Fair value gains (check revaluation method under IFRS 13).")
-                st.write("- Purchase of new property (check capital expenditure records).")
-                st.write("- Reclassification from PPE (verify IAS 40 conditions).")
-            elif change < -3:
-                st.write("Decrease detected. Investigate:")
-                st.write("- Disposals (verify sale agreements and derecognition under IFRS 13).")
-                st.write("- Impairments (apply IAS 36 impairment review).")
-            else:
-                st.write("No significant change in Investment Property. Cross-check disclosures and revaluation policy consistency.")
-
-            st.write("Always ensure IFRS 13 (Fair Value Measurement) and IAS 40 are appropriately disclosed and applied.")
 
 
 
