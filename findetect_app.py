@@ -1,109 +1,114 @@
 import streamlit as st
+import pandas as pd
 import re
 
-# Set custom page config
-st.set_page_config(page_title="FinDetect Pro", page_icon="📈", layout="centered")
+# Page configuration
+st.set_page_config(page_title="FinDetect", layout="centered")
 
-# Apply custom CSS for background and font
+# Custom styling
 st.markdown("""
     <style>
-    body {
-        background-color: #001f3f;
-        color: white;
-        font-family: 'Varela Round', sans-serif;
-    }
-    .stTextInput>div>div>input {
-        background-color: #0074D9;
-        color: white;
-    }
-    .stButton>button {
-        background-color: #0074D9;
-        color: white;
-        border-radius: 8px;
-    }
-    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
-        color: #7FDBFF;
-    }
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        html, body, [class*="css"] {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #000080 !important;
+            color: white !important;
+        }
+
+        .stApp {
+            background-color: #000080 !important;
+        }
+
+        .stTextInput input {
+            background-color: #add8e6 !important; /* Light blue */
+            color: black !important;
+            border: 1px solid #ffffff !important;
+        }
+
+        .stButton>button {
+            background-color: #add8e6 !important;
+            color: black !important;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background: radial-gradient(white 1px, transparent 1px);
+            background-size: 30px 30px;
+            animation: moveDots 10s linear infinite;
+            opacity: 0.05;
+        }
+
+        @keyframes moveDots {
+            from {
+                background-position: 0 0;
+            }
+            to {
+                background-position: 100px 100px;
+            }
+        }
     </style>
 """, unsafe_allow_html=True)
 
-# Title & description
-st.markdown("""
-    <h1>📈 FinDetect Pro</h1>
-    <p>Advanced Financial Statement Analyzer with IFRS logic, risk scoring, and insights.</p>
-    <img src="https://i.imgur.com/2nCt3Sb.png" alt="Finance" width="100%">
-""", unsafe_allow_html=True)
+st.title("FinDetect: AI-Powered Financial Analysis")
 
-# --- Analysis Function ---
+# Chat input
+query = st.text_input("Paste a company's financial data or ask a financial question:")
+
+# Parse basic structure
+def parse_financials(text):
+    numbers = re.findall(r'\d+[\,\.]?\d*', text.replace(',', ''))
+    numbers = [float(n) for n in numbers if n.replace('.', '', 1).isdigit()]
+
+    results = {}
+    if len(numbers) >= 5:
+        results['Revenue'] = numbers[0]
+        results['COGS'] = numbers[1]
+        results['Net Income'] = numbers[2]
+        results['Total Assets'] = numbers[3]
+        results['Total Liabilities'] = numbers[4]
+    return results
+
+# Analyze data with detailed reasoning
 def analyze(financials):
     if not financials:
-        return "Unable to extract enough financial data. Try again with more details."
+        return "❗ Unable to extract enough financial data. Try again with more detail."
 
     analysis = []
-    risk_flags = []
 
-    # Gross Profit Margin
     if 'Revenue' in financials and 'COGS' in financials:
         gpm = (financials['Revenue'] - financials['COGS']) / financials['Revenue'] * 100
-        analysis.append(f"Gross Profit Margin: {gpm:.2f}%")
-        if gpm < 20:
-            risk_flags.append("Low gross margin may indicate pricing pressure or high production costs.")
+        analysis.append(f"✅ Gross Profit Margin: {gpm:.2f}%")
 
-    # Net Profit Margin
     if 'Net Income' in financials and 'Revenue' in financials:
         npm = financials['Net Income'] / financials['Revenue'] * 100
-        analysis.append(f"Net Profit Margin: {npm:.2f}%")
-        if npm > 100:
-            risk_flags.append("Unusually high net margin — verify if data includes one-off gains or accounting anomalies.")
+        analysis.append(f"✅ Net Profit Margin: {npm:.2f}%")
 
-    # Debt to Asset Ratio
     if 'Total Liabilities' in financials and 'Total Assets' in financials:
         dar = financials['Total Liabilities'] / financials['Total Assets'] * 100
-        analysis.append(f"Debt to Asset Ratio: {dar:.2f}%")
+        analysis.append(f"⚠️ Debt to Asset Ratio: {dar:.2f}%")
 
         if dar > 70:
-            risk_level = "🔴 High Risk"
-            explanation = (
-                f"{risk_level} – Leverage exceeds 70%, suggesting over-reliance on debt financing. "
-                "This increases insolvency risk and reduces financial flexibility. "
-                "Per IFRS 9, assess expected credit losses (ECL), especially if assets are under stress. "
-                "Entity may move to Stage 2 or 3 under IFRS 9 if there's significant increase in credit risk or default probability. "
-                "High leverage may breach loan covenants, trigger refinancing issues, and lead to a downgrade in credit ratings. "
-                "Also assess interest coverage and operating cash flow to ensure debt sustainability."
-            )
-            analysis.append(explanation)
+            analysis.append("🔎 High leverage detected. This may raise red flags for creditors and investors.\n")
+            analysis.append("- Consider reviewing **IFRS 9** for credit risk classification and impairment models.\n"
+                            "- High leverage can also reflect aggressive expansion, over-reliance on debt financing, or poor asset quality.\n"
+                            "- Check liquidity, interest coverage ratios, and ensure covenant compliance.")
 
-    # Summary
-    if len(analysis) == 0:
-        return "Not enough info for analysis. Please provide more financial details."
-
-    if risk_flags:
-        analysis.append("\n⚠️ Additional Flags:")
-        analysis.extend([f"- {flag}" for flag in risk_flags])
+    if not analysis:
+        return "❗ Not enough data for meaningful analysis."
 
     return '\n'.join(analysis)
 
-# --- Input Method ---
-st.markdown("### Enter Financial Data:")
-user_input = st.text_area("Paste key financial figures (e.g., Revenue: 1000000, Net Income: 200000, COGS: 600000, etc.)")
+# Show output
+if query:
+    financial_data = parse_financials(query)
+    result = analyze(financial_data)
+    st.subheader("📊 Analysis Result")
+    st.text(result)
 
-# --- Extract Numbers ---
-def extract_financials(text):
-    pattern = r"([A-Za-z ]+):\s*([\d,.]+)"
-    matches = re.findall(pattern, text)
-    financials = {}
-    for key, value in matches:
-        key_clean = key.strip()
-        value_clean = float(value.replace(",", ""))
-        financials[key_clean] = value_clean
-    return financials
-
-# --- Analyze Button ---
-if st.button("Analyze"):
-    data = extract_financials(user_input)
-    result = analyze(data)
-    st.markdown("### 📊 Analysis Result:")
-    st.code(result)
-    st.markdown("""
-        <img src="https://i.imgur.com/WtXG5pJ.png" alt="Risk Chart" width="100%">
-    """, unsafe_allow_html=True)
