@@ -30,13 +30,13 @@ st.markdown("""
 
 st.title("FinDetect: AI-Powered Financial Analysis")
 
-query = st.text_input("Paste line items and year-on-year values:")
+query = st.text_input("Paste line items and year-on-year values (e.g. 'Investment Property 2024: 5000, 2025: 6000'):")
 
 # IFRS/IAS mapping for advanced analysis
 ifrs_guidance = {
     "Investment Property": {
         "standards": ["IAS 40", "IFRS 13"],
-        "notes": "Investment property should be measured at fair value. Significant increases may indicate revaluation or acquisition. Check appraisal reports, acquisition records, and ensure fair value hierarchy disclosures are met."
+        "notes": "Investment property should be measured at fair value. Significant increases may indicate revaluation or acquisition. Check appraisal reports, acquisition records, and ensure fair value hierarchy disclosures are met. If unchanged, assess whether market conditions justify a revaluation. Inspect documentation to confirm annual fair value assessments were performed."
     },
     "Revenue": {
         "standards": ["IFRS 15"],
@@ -65,12 +65,13 @@ ifrs_guidance = {
 }
 
 def parse_yearly_change(text):
-    lines = re.split(r'[\n,;]+', text)
+    lines = re.split(r'[\n;]+', text)
     results = []
     for line in lines:
-        match = re.match(r'(.*?)\s*2024\D*(\d+[.,]?\d*)\D*2025\D*(\d+[.,]?\d*)', line, re.IGNORECASE)
+        # Extremely flexible match for item followed by 2024 and 2025 values
+        match = re.search(r'(.*?)\s*2024[^\d]*([\d,\.]+)[^\d]*2025[^\d]*([\d,\.]+)', line, re.IGNORECASE)
         if match:
-            item = match.group(1).strip()
+            item = match.group(1).strip().rstrip(':')
             val_2024 = float(match.group(2).replace(',', ''))
             val_2025 = float(match.group(3).replace(',', ''))
             change_pct = ((val_2025 - val_2024) / val_2024) * 100 if val_2024 else 0
@@ -104,4 +105,5 @@ if query:
     result = advanced_analysis(parsed)
     st.subheader("Analysis Result")
     st.markdown(result, unsafe_allow_html=True)
+
 
