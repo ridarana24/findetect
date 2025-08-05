@@ -5,80 +5,45 @@ import re
 # Set page config
 st.set_page_config(page_title="FinDetect", layout="centered")
 
-# Custom styling with matrix-style animated background and boxy font
+# Custom styling: animated background + boxy font
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
-        html, body, [class*="css"] {
-            font-family: 'Share Tech Mono', monospace !important;
+        html, body, [class*="css"]  {
+            font-family: 'Share Tech Mono', monospace;
+            background: radial-gradient(circle at center, #000 0%, #111 100%) !important;
             color: #00FF41 !important;
-            background-color: transparent !important;
+            animation: spacePulse 6s infinite alternate;
         }
 
-        .stApp {
-            background-color: transparent !important;
-        }
-
-        .block-container {
-            background-color: rgba(0,0,0,0) !important;
-        }
-
-        .stTextInput input, .stTextArea textarea {
-            background-color: #000000 !important;
-            color: #00FF41 !important;
-            border: 1px solid #00FF41 !important;
-        }
-
-        .stTextInput label, .stTextArea label, .stSubheader, .stTitle {
-            color: #00FF41 !important;
-        }
-
-        canvas#matrix {
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: -1;
-        }
-    </style>
-
-    <canvas id="matrix"></canvas>
-    <script>
-        const canvas = document.getElementById('matrix');
-        const ctx = canvas.getContext('2d');
-
-        canvas.height = window.innerHeight;
-        canvas.width = window.innerWidth;
-
-        const letters = 'アァイィウヴエエェオカガキギクグケゲコゴサザシジスズセゼソゾタダチッヂヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        const fontSize = 14;
-        const columns = canvas.width / fontSize;
-        const drops = [];
-
-        for (let i = 0; i < columns; i++) {
-            drops[i] = 1;
-        }
-
-        function draw() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.fillStyle = '#0F0';
-            ctx.font = fontSize + 'px Share Tech Mono';
-
-            for (let i = 0; i < drops.length; i++) {
-                const text = letters.charAt(Math.floor(Math.random() * letters.length));
-                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                    drops[i] = 0;
-                }
-                drops[i]++;
+        @keyframes spacePulse {
+            0% {
+                background-color: #000000;
+            }
+            100% {
+                background-color: #0a0a23;
             }
         }
 
-        setInterval(draw, 33);
-    </script>
+        .stApp {
+            background: transparent !important;
+        }
+
+        .stTextInput input {
+            color: #00FF41;
+            background-color: #000;
+            border: 1px solid #00FF41;
+        }
+
+        .stTextInput label {
+            color: #00FF41;
+        }
+
+        .stSubheader {
+            color: #00FF41;
+        }
+    </style>
 """, unsafe_allow_html=True)
 
 st.title("FinDetect: AI-Powered Financial Analysis")
