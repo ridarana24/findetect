@@ -2,113 +2,123 @@ import streamlit as st
 import pandas as pd
 import re
 
-# Page configuration
+# Set page config
 st.set_page_config(page_title="FinDetect", layout="centered")
 
-# Custom styling
+# Custom styling with dark navy background and light blue accents
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
-        html, body, [class*="css"] {
+        html, body, [class*="css"]  {
             font-family: 'Share Tech Mono', monospace;
-            background-color: #000080 !important;
-            color: white !important;
+            background-color: #001f3f !important;
+            color: #FFFFFF !important;
         }
 
         .stApp {
-            background-color: #000080 !important;
+            background-color: #001f3f !important;
         }
 
         .stTextInput input {
-            background-color: #add8e6 !important; /* Light blue */
-            color: black !important;
-            border: 1px solid #ffffff !important;
+            color: #FFFFFF;
+            background-color: #005792;
+            border: 1px solid #00BFFF;
         }
 
         .stButton>button {
-            background-color: #add8e6 !important;
-            color: black !important;
-        }
-
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -1;
-            background: radial-gradient(white 1px, transparent 1px);
-            background-size: 30px 30px;
-            animation: moveDots 10s linear infinite;
-            opacity: 0.05;
-        }
-
-        @keyframes moveDots {
-            from {
-                background-position: 0 0;
-            }
-            to {
-                background-position: 100px 100px;
-            }
+            background-color: #005792;
+            color: #FFFFFF;
         }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("FinDetect: AI-Powered Financial Analysis")
+st.title("FinDetect: AI-Powered Financial Analysis for Auditors")
 
-# Chat input
-query = st.text_input("Paste a company's financial data or ask a financial question:")
+# Chat-based input
+query = st.text_input("Paste a company's financial data or ask a question:")
 
-# Parse basic structure
+# Sample logic for chat analysis
 def parse_financials(text):
+    # Basic number and keyword extraction
     numbers = re.findall(r'\d+[\,\.]?\d*', text.replace(',', ''))
     numbers = [float(n) for n in numbers if n.replace('.', '', 1).isdigit()]
 
+    # Keyword-based detection
+    keywords = {
+        'Revenue': ['revenue', 'sales'],
+        'COGS': ['cost of goods sold', 'cogs'],
+        'Net Income': ['net income', 'profit after tax'],
+        'Total Assets': ['total assets'],
+        'Total Liabilities': ['total liabilities'],
+        'Investment Property': ['investment property'],
+        'Intangible Assets': ['intangible'],
+        'Cash and Cash Equivalents': ['cash'],
+        'Equity': ['equity']
+    }
+
     results = {}
-    if len(numbers) >= 5:
-        results['Revenue'] = numbers[0]
-        results['COGS'] = numbers[1]
-        results['Net Income'] = numbers[2]
-        results['Total Assets'] = numbers[3]
-        results['Total Liabilities'] = numbers[4]
+    for key, terms in keywords.items():
+        for term in terms:
+            if term in text.lower():
+                index = text.lower().find(term)
+                context = text[index:index+100]
+                value_match = re.findall(r'\d+[\,\.]?\d*', context.replace(',', ''))
+                if value_match:
+                    results[key] = float(value_match[0])
+                    break
+
+    if len(results) == 0 and len(numbers) == 1:
+        results['Single Value'] = numbers[0]
+
     return results
 
-# Analyze data with detailed reasoning
 def analyze(financials):
     if not financials:
-        return "❗ Unable to extract enough financial data. Try again with more detail."
+        return "Unable to extract enough financial data. Try again with more detail."
 
     analysis = []
 
     if 'Revenue' in financials and 'COGS' in financials:
         gpm = (financials['Revenue'] - financials['COGS']) / financials['Revenue'] * 100
-        analysis.append(f"✅ Gross Profit Margin: {gpm:.2f}%")
+        analysis.append(f"Gross Profit Margin: {gpm:.2f}%")
 
     if 'Net Income' in financials and 'Revenue' in financials:
         npm = financials['Net Income'] / financials['Revenue'] * 100
-        analysis.append(f"✅ Net Profit Margin: {npm:.2f}%")
+        analysis.append(f"Net Profit Margin: {npm:.2f}%")
 
     if 'Total Liabilities' in financials and 'Total Assets' in financials:
         dar = financials['Total Liabilities'] / financials['Total Assets'] * 100
-        analysis.append(f"⚠️ Debt to Asset Ratio: {dar:.2f}%")
+        analysis.append(f"Debt to Asset Ratio: {dar:.2f}%")
 
         if dar > 70:
-            analysis.append("🔎 High leverage detected. This may raise red flags for creditors and investors.\n")
-            analysis.append("- Consider reviewing **IFRS 9** for credit risk classification and impairment models.\n"
-                            "- High leverage can also reflect aggressive expansion, over-reliance on debt financing, or poor asset quality.\n"
-                            "- Check liquidity, interest coverage ratios, and ensure covenant compliance.")
+            analysis.append("High leverage detected. Consider IFRS 9 implications: credit risk, impairment provisioning, and going concern risks. Also assess whether the debt structure is sustainable and properly disclosed.")
 
-    if not analysis:
-        return "❗ Not enough data for meaningful analysis."
+    if 'Investment Property' in financials:
+        analysis.append("Investment property detected. Ensure IFRS 13 (Fair Value Measurement) and IAS 40 (Investment Property) guidance are followed.")
+
+    if 'Intangible Assets' in financials:
+        analysis.append("Check if intangible assets comply with IAS 38, particularly regarding amortisation and impairment.")
+
+    if 'Cash and Cash Equivalents' in financials:
+        if financials['Cash and Cash Equivalents'] < 0:
+            analysis.append("Negative cash balance detected — verify cash flow statement and reconciliation with bank confirmations.")
+
+    if 'Equity' in financials and 'Total Assets' in financials:
+        eq_ratio = financials['Equity'] / financials['Total Assets'] * 100
+        analysis.append(f"Equity to Asset Ratio: {eq_ratio:.2f}%")
+
+    if 'Single Value' in financials:
+        analysis.append("Single figure detected. Please specify the account name (e.g. Investment Property 2024: 500000, 2025: 700000) for a more detailed analysis.")
+
+    if len(analysis) == 0:
+        return "Not enough recognizable data for analysis. Try specifying the line items (e.g., Revenue: 100000, Net Income: 25000)."
 
     return '\n'.join(analysis)
 
-# Show output
 if query:
     financial_data = parse_financials(query)
     result = analyze(financial_data)
-    st.subheader("📊 Analysis Result")
+    st.subheader("Analysis Result")
     st.text(result)
 
