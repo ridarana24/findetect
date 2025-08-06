@@ -1,13 +1,19 @@
 import streamlit as st
 import pandas as pd
 import re
-import openai
 import matplotlib.pyplot as plt
+from openai import OpenAI
 
-# Set page config
+# Use local LM Studio API
+client = OpenAI(
+    base_url="http://localhost:1234/v1",
+    api_key="lm-studio"
+)
+
+# Page config
 st.set_page_config(page_title="FinDetect", layout="wide")
 
-# Custom styling
+# Styling (Share Tech Mono)
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
@@ -34,6 +40,7 @@ st.title("FinDetect: AI-Powered Financial Analysis & Audit Engine")
 
 query = st.text_input("Paste financial items with 2024 and 2025 values:")
 
+# Financial Ratios
 ratios = {
     "ROCE": lambda data: (data.get("Net Profit", 0) / (data.get("Total Assets", 1) - data.get("Current Liabilities", 0)) * 100),
     "Gross Profit Margin": lambda data: ((data.get("Revenue", 0) - data.get("COGS", 0)) / data.get("Revenue", 1) * 100),
@@ -46,6 +53,7 @@ ratios = {
     "Equity Ratio": lambda data: (data.get("Share Capital", 0) / max(data.get("Total Assets", 1), 1) * 100)
 }
 
+# IFRS Audit Guidance
 ifrs_guidance = {
     "Investment Property": {"standards": ["IAS 40", "IFRS 13"], "notes": "Fair value, revaluation or acquisition reviewed."},
     "Revenue": {"standards": ["IFRS 15"], "notes": "Check recognition timing, volume/price, contracts."},
@@ -70,6 +78,7 @@ ifrs_guidance = {
     "Employee Benefits": {"standards": ["IAS 19"], "notes": "Defined benefit obligations and disclosures."}
 }
 
+# Parse Input
 def parse_yearly_change(text):
     pattern = r'(.*?)\s*(?:2024|in 2024|was in 2024|for 2024)[:\s-]*([\d,.]+)[^\d]+(?:2025|in 2025|was in 2025|for 2025)[:\s-]*([\d,.]+)'
     results = []
@@ -86,19 +95,21 @@ def parse_yearly_change(text):
                 continue
     return results
 
+# AI from Local Model
 def get_ai_insight(text):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
+        response = client.chat.completions.create(
+            model="local-model",  # LM Studio ignores this
             messages=[
-                {"role": "system", "content": "You're a forensic audit AI engine. Assess risk, audit scenarios, ISA relevance and fraud flags."},
+                {"role": "system", "content": "You're a forensic audit AI. Assess risk, audit scenarios, ISA relevance and fraud flags."},
                 {"role": "user", "content": text}
             ]
         )
         return response.choices[0].message.content
-    except:
-        return "AI engine currently unavailable."
+    except Exception as e:
+        return f"AI engine error: {e}"
 
+# Chart
 def show_chart(results):
     if results:
         df = pd.DataFrame(results, columns=["Item", "2024", "2025", "% Change"])
@@ -106,6 +117,7 @@ def show_chart(results):
         st.pyplot(plt.gcf())
         plt.clf()
 
+# Advanced Analysis
 def advanced_analysis(results):
     if not results:
         return "<span style='color:red'>⚠️ Not enough data. Try: 'PPE in 2024: 5000, 2025: 4800'</span>"
@@ -141,6 +153,7 @@ def advanced_analysis(results):
 
     return '\n\n'.join(output)
 
+# Run
 if query:
     parsed = parse_yearly_change(query)
     result = advanced_analysis(parsed)
